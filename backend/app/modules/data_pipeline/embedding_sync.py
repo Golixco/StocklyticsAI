@@ -11,7 +11,7 @@ Called by:
   - transform_runner.run_mart_refresh()   (daily scheduled, post-mart success)
   - scripts/run_embedding_sync.py         (manual trigger or full rebuild)
 
-Embedding model: Gemini embedding API (configured model with fallbacks).
+Embedding model: Local sentence-transformers model.
 Load strategy: per-store WRITE_TRUNCATE via a temp table swap to avoid DML billing.
 
 Rules:
@@ -34,126 +34,25 @@ from app.common.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-_EMBED_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models"
-    "/{model}:batchEmbedContents"
-)
-_EMBED_MODEL_FALLBACKS = (
-    "gemini-embedding-001",
-)
+_embedder = None
+
+def _get_embedder():
+    global _embedder
+    if _embedder is None:
+        from sentence_transformers import SentenceTransformer
+        model_id = "sentence-transformers/all-MiniLM-L6-v2"
+        logger.info(f"Loading local embedding model: {model_id}")
+        _embedder = SentenceTransformer(model_id)
+    return _embedder
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-def _build_embedding_text(product: dict[str, Any]) -> str:
-    """Build the canonical text string to embed for a product.
-
-    Combines name and category, separated by ' | '.
-    Extending this function (e.g. adding price tier or status) will automatically
-    improve retrieval quality on next embedding sync run.
-    """
-    name = str(product.get("product_name") or product.get("name") or "").strip()
-    category = str(product.get("category") or "").strip()
-    product_id = str(product.get("product_id") or product.get("id") or "").strip()
-    price = product.get("price")
-    quantity = product.get("quantity_on_hand")
-    status = str(product.get("status") or "").strip()
-    expiry_status = str(product.get("expiry_status") or "").strip()
-
-    parts = [
-        name,
-        category,
-        f"product_id: {product_id}" if product_id else "",
-        f"price_in_inr: {price}" if price not in (None, "") else "",
-        f"quantity_on_hand: {quantity}" if quantity not in (None, "") else "",
-        f"status: {status}" if status else "",
-        f"expiry_status: {expiry_status}" if expiry_status else "",
-    ]
-    return " | ".join(p for p in parts if p)
-
-
-def _extract_embedding_values(item: dict[str, Any]) -> list[float]:
-    """Accept both documented and observed Gemini embedding response shapes."""
-    if isinstance(item.get("values"), list):
-        return [float(v) for v in item["values"]]
-
-    nested = item.get("embedding")
-    if isinstance(nested, dict) and isinstance(nested.get("values"), list):
-        return [float(v) for v in nested["values"]]
-
-    raise KeyError("Embedding response item did not contain values.")
-
-
-async def _embed_batch(
-    texts: list[str],
-    api_key: str,
-    model: str,
-) -> list[list[float]]:
-    """Call Gemini batchEmbedContents. Returns one embedding per text.
-
-    Raises httpx.HTTPStatusError on API failure so the caller can catch and
-    decide whether to retry or skip.
-    """
-    url = _EMBED_URL.format(model=model)
-    payload = {
-        "requests": [
-            {
-                "model": f"models/{model}",
-                "content": {"parts": [{"text": t}]},
-                "taskType": "RETRIEVAL_DOCUMENT",
-            }
-            for t in texts
-        ]
-    }
-    headers = {
-        "x-goog-api-key": api_key,
-        "Content-Type": "application/json",
-    }
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        body = response.json()
-    return [_extract_embedding_values(emb) for emb in body["embeddings"]]
-
-
-def _embedding_model_candidates(preferred_model: str) -> list[str]:
-    ordered: list[str] = []
-    for model_name in (preferred_model, *_EMBED_MODEL_FALLBACKS):
-        if model_name and model_name not in ordered:
-            ordered.append(model_name)
-    return ordered
-
-
-async def _embed_batch_with_fallback(
-    texts: list[str],
-    api_key: str,
-    preferred_model: str,
-) -> tuple[list[list[float]], str]:
-    last_error: Exception | None = None
-    for model_name in _embedding_model_candidates(preferred_model):
-        try:
-            embeddings = await _embed_batch(texts, api_key, model_name)
-            return embeddings, model_name
-        except httpx.HTTPStatusError as exc:
-            last_error = exc
-            status_code = exc.response.status_code
-            if status_code in {404, 400}:
-                logger.warning(
-                    "Embedding model unavailable; trying fallback model",
-                    extra={"model": model_name, "status_code": status_code},
-                )
-                continue
-            raise
-        except Exception as exc:
-            last_error = exc
-            raise
-
-    if last_error is not None:
-        raise last_error
-    raise RuntimeError("No embedding model candidates available.")
+async def _embed_batch_local(texts: list[str]) -> list[list[float]]:
+    try:
+        embedder = await asyncio.to_thread(_get_embedder)
+        embeddings = await asyncio.to_thread(embedder.encode, texts)
+        return [emb.tolist() for emb in embeddings]
+    except Exception as exc:
+        raise RuntimeError(f"Local embedding failed: {exc}")
 
 
 def _load_rows_to_bigquery(
@@ -233,15 +132,6 @@ async def sync_product_embeddings(
         )
         return 0
 
-    if not settings.gemini_api_key:
-        logger.warning(
-            "GEMINI_API_KEY not configured; skipping embedding sync",
-            extra={"store_id": store_id},
-        )
-        return 0
-
-    api_key = settings.gemini_api_key
-    preferred_model = settings.gemini_embedding_model
     batch_size = settings.embedding_batch_size
     now = datetime.now(timezone.utc)
     project = settings.bigquery_project_id
@@ -257,9 +147,9 @@ async def sync_product_embeddings(
         texts = [_build_embedding_text(p) for p in batch]
 
         try:
-            embeddings, used_model = await _embed_batch_with_fallback(texts, api_key, preferred_model)
+            embeddings = await _embed_batch_local(texts)
             if selected_model is None:
-                selected_model = used_model
+                selected_model = "sentence-transformers/all-MiniLM-L6-v2"
         except Exception as exc:
             logger.warning(
                 "Embedding batch failed; skipping batch",

@@ -35,12 +35,12 @@ async def post_chat(
     user: AuthenticatedUser = Depends(require_auth),
 ) -> None:
     """
-    Answer a business question using structured store data and Gemini.
+    Answer a business question using structured store data and Gemma.
 
     - Requires: valid auth token, store_id in body matching the authenticated store scope.
     - Returns: natural language answer with grounding metadata and freshness info.
     - Error 503 AI_CONTEXT_NOT_READY: analytics metadata not available.
-    - Error 503 AI_PROVIDER_ERROR: Gemini API call failed.
+    - Error 503 AI_PROVIDER_ERROR: Gemma API call failed.
     """
     if body.store_id != user.store_id:
         raise ValidationError(

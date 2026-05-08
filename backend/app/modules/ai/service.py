@@ -1113,64 +1113,48 @@ async def _await_with_timeout(coro, timeout_seconds: float):
     return await asyncio.wait_for(coro, timeout=timeout_seconds)
 
 
-_EMBED_QUERY_MODEL_FALLBACKS = ("gemini-embedding-001",)
+_tokenizer = None
+_model = None
+_embedder = None
 
+def _get_tokenizer_and_model():
+    global _tokenizer, _model
+    if _model is None:
+        import torch
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        # Using Gemma 4 4B model as requested for the Kaggle challenge
+        model_id = "google/gemma-4-4b-it"
+        logger.info(f"Loading local Gemma model: {model_id}")
+        _tokenizer = AutoTokenizer.from_pretrained(model_id)
+        _model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+            device_map="auto" if torch.cuda.is_available() else None,
+        )
+    return _tokenizer, _model
 
-def _query_embedding_model_candidates(preferred_model: str) -> list[str]:
-    ordered: list[str] = []
-    for model_name in (preferred_model, *_EMBED_QUERY_MODEL_FALLBACKS):
-        if model_name and model_name not in ordered:
-            ordered.append(model_name)
-    return ordered
+def _get_embedder():
+    global _embedder
+    if _embedder is None:
+        from sentence_transformers import SentenceTransformer
+        model_id = "sentence-transformers/all-MiniLM-L6-v2"
+        logger.info(f"Loading local embedding model: {model_id}")
+        _embedder = SentenceTransformer(model_id)
+    return _embedder
 
 
 async def _embed_query(query: str) -> Optional[list[float]]:
-    """Generate a query embedding via Gemini embedding models.
-
-    Returns None on any failure so the caller can skip vector retrieval
-    and fall through to the deterministic context path.
-    """
-    settings = get_settings()
-    if not settings.gemini_api_key:
+    """Generate a query embedding via local sentence-transformers model."""
+    try:
+        embedder = await asyncio.to_thread(_get_embedder)
+        embedding = await asyncio.to_thread(embedder.encode, query)
+        return embedding.tolist()
+    except Exception as exc:
+        logger.warning(
+            "Query embedding failed; skipping RAG retrieval",
+            exc_info=exc,
+        )
         return None
-    headers = {
-        "x-goog-api-key": settings.gemini_api_key,
-        "Content-Type": "application/json",
-    }
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        for model in _query_embedding_model_candidates(settings.gemini_embedding_model):
-            url = (
-                f"https://generativelanguage.googleapis.com/v1beta/models"
-                f"/{model}:embedContent"
-            )
-            payload = {
-                "model": f"models/{model}",
-                "content": {"parts": [{"text": query}]},
-                "taskType": "RETRIEVAL_QUERY",
-            }
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                return response.json()["embedding"]["values"]
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code in {400, 404}:
-                    logger.warning(
-                        "Query embedding model unavailable; trying fallback model",
-                        extra={"model": model, "status_code": exc.response.status_code},
-                    )
-                    continue
-                logger.warning(
-                    "Query embedding failed; skipping RAG retrieval",
-                    exc_info=exc,
-                )
-                return None
-            except Exception as exc:
-                logger.warning(
-                    "Query embedding failed; skipping RAG retrieval",
-                    exc_info=exc,
-                )
-                return None
-    return None
 
 
 async def _generate_model_answer(
@@ -1180,133 +1164,43 @@ async def _generate_model_answer(
     fallback_models: Optional[list[str]] = None,
     max_output_tokens: int = 220,
 ) -> str:
-    """Call the hosted model using the official REST API with the configured API key."""
-    settings = get_settings()
-    if not settings.gemini_api_key:
-        raise AIProviderError("GEMINI_API_KEY is not configured.")
-
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": prompt,
-                    }
-                ]
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.2,
-            "topP": 0.8,
-            "maxOutputTokens": max(120, min(int(max_output_tokens), 1024)),
-        },
-    }
-    headers = {
-        "x-goog-api-key": settings.gemini_api_key,
-        "Content-Type": "application/json",
-    }
-
-    timeout_seconds = max(float(settings.gemini_model_timeout_seconds), 1.0)
-    primary_model = (preferred_model or "").strip() or settings.ai_default_model_id or settings.ai_primary_model_id
-    fallback_candidates = fallback_models if fallback_models is not None else settings.gemini_model_fallbacks
-    model_candidates = _generation_model_candidates(primary_model, fallback_candidates)
-    max_retries = max(int(settings.gemini_generation_retries), 0)
-    last_error: Exception | None = None
-
-    for model in model_candidates:
-        model_timeout_seconds = timeout_seconds
-        model_retries = max_retries
-        if model == settings.ai_reasoning_model_id:
-            model_timeout_seconds = min(timeout_seconds, 18.0)
-            model_retries = 0
-
-        async with httpx.AsyncClient(timeout=model_timeout_seconds) as client:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-            for attempt in range(model_retries + 1):
-                try:
-                    response = await client.post(url, headers=headers, json=payload)
-                    response.raise_for_status()
-                    body = response.json()
-                    return _extract_model_text(body)
-                except httpx.HTTPStatusError as exc:
-                    last_error = exc
-                    status_code = exc.response.status_code
-                    if status_code in {400, 404}:
-                        logger.warning(
-                            "Hosted model unavailable or invalid; trying next model",
-                            extra={"model": model, "status_code": status_code},
-                        )
-                        break
-                    if _should_retry_model_error(exc) and attempt < model_retries:
-                        await _sleep_before_retry(attempt, model=model, reason=f"http_{status_code}")
-                        continue
-                    logger.warning(
-                        "Hosted model request failed",
-                        exc_info=exc,
-                        extra={
-                            "model": model,
-                            "status_code": status_code,
-                            "attempt": attempt + 1,
-                            "timeout_seconds": model_timeout_seconds,
-                        },
-                    )
-                    break
-                except Exception as exc:
-                    last_error = exc
-                    if _should_retry_model_error(exc) and attempt < model_retries:
-                        await _sleep_before_retry(attempt, model=model, reason=exc.__class__.__name__)
-                        continue
-                    logger.warning(
-                        "Hosted model request failed",
-                        exc_info=exc,
-                        extra={"model": model, "attempt": attempt + 1, "timeout_seconds": model_timeout_seconds},
-                    )
-                    break
-
-    if last_error is not None:
-        raise AIProviderError(f"Hosted model request failed after retries: {last_error}")
-    raise AIProviderError("No hosted model candidates are configured.")
-
-
-def _generation_model_candidates(primary_model: str, fallback_models: list[str]) -> list[str]:
-    ordered: list[str] = []
-    for model_name in (primary_model, *fallback_models):
-        if model_name and model_name not in ordered:
-            ordered.append(model_name)
-    return ordered
-
-
-def _extract_model_text(body: dict[str, Any]) -> str:
-    candidates = body.get("candidates") or []
-    for candidate in candidates:
-        content = candidate.get("content") or {}
-        parts = content.get("parts") or []
-        text = "".join(str(part.get("text", "")) for part in parts if part.get("text"))
-        if text.strip():
-            return text.strip()
-
-    prompt_feedback = body.get("promptFeedback") or {}
-    block_reason = prompt_feedback.get("blockReason")
-    if block_reason:
-        raise AIProviderError(f"Model response was blocked: {block_reason}")
-    raise AIProviderError("Model response did not contain any text.")
-
-
-def _should_retry_model_error(exc: Exception) -> bool:
-    if isinstance(exc, (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError)):
-        return True
-    if isinstance(exc, httpx.HTTPStatusError):
-        return exc.response.status_code in {408, 429, 500, 502, 503, 504}
-    return False
-
-
-async def _sleep_before_retry(attempt: int, *, model: str, reason: str) -> None:
-    delay_seconds = min(1.0 * (2**attempt) + random.uniform(0.0, 0.25), 6.0)
-    logger.warning(
-        "Retrying hosted model request after transient failure",
-        extra={"model": model, "retry_in_seconds": round(delay_seconds, 2), "reason": reason},
-    )
-    await asyncio.sleep(delay_seconds)
+    """Call the local Gemma 4 4B model using transformers."""
+    try:
+        import torch
+        tokenizer, model = await asyncio.to_thread(_get_tokenizer_and_model)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        messages = [
+            {"role": "user", "content": _SYSTEM_INSTRUCTION},
+            {"role": "assistant", "content": "Understood. I will strictly follow the rules and only answer based on the provided context."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        prompt_tensor = tokenizer.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt"
+        ).to(device)
+        
+        prompt_len = prompt_tensor.shape[-1]
+        
+        def _generate():
+            return model.generate(
+                prompt_tensor,
+                max_new_tokens=max_output_tokens,
+                do_sample=False,
+            )
+            
+        outputs = await asyncio.to_thread(_generate)
+        gen_ids = outputs[0, prompt_len:]
+        reply = tokenizer.decode(gen_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True).strip()
+        
+        if not reply:
+            raise AIProviderError("Local model generated empty response.")
+        return reply
+    except Exception as exc:
+        raise AIProviderError(f"Local Gemma inference failed: {exc}")
 
 
 async def _get_live_dashboard_summary_fallback(
@@ -1545,7 +1439,6 @@ def _select_model(
                 settings.ai_fast_model_id,
                 settings.ai_default_model_id,
                 *settings.ai_fallback_model_ids,
-                *settings.gemini_model_fallbacks,
             ]
             if model and model != selected
         ]
@@ -1558,7 +1451,6 @@ def _select_model(
             settings.ai_default_model_id,
             settings.ai_reasoning_model_id,
             *settings.ai_fallback_model_ids,
-            *settings.gemini_model_fallbacks,
         ]
         if model and model != selected
     ]

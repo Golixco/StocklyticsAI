@@ -23,7 +23,7 @@ class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1, description="The business question asked by the user.")
     model_id: Optional[str] = Field(
         default=None,
-        description="Optional generation model override. Example: gemini-2.0-flash or gemini-2.0-flash-lite-001.",
+        description="Optional generation model override. Example: google/gemma-4-4b-it or google/gemma-4-2b-it.",
     )
 
 

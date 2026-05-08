@@ -15,9 +15,11 @@ firebase-admin==6.7.0
 google-cloud-bigquery==3.31.0
 google-cloud-firestore==2.20.1
 
-# Gemini AI
-google-generativeai==0.8.5
-
+# Gemma AI (Local Inference)
+transformers>=4.40.0
+torch>=2.2.0
+sentence-transformers>=2.7.0
+accelerate>=0.29.0
 # Data validation
 pydantic==2.11.1
 

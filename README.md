@@ -2,7 +2,7 @@
 
 Stocklytics AI is a retail operations platform for small and medium stores. It combines inventory management, billing, customer records, alerts, analytics, and a grounded AI assistant in one workspace built for day-to-day store operations.
 
-The project is implemented as a modular monolith backend with a modern Next.js frontend, and it is designed to run well on Google Cloud using Firestore, BigQuery, Cloud Run, and Gemini models.
+The project is implemented as a modular monolith backend with a modern Next.js frontend, and it is designed to run well on Google Cloud using Firestore, BigQuery, Cloud Run, and local Gemma open models.
 
 ## Table of Contents
 
@@ -21,6 +21,19 @@ The project is implemented as a modular monolith backend with a modern Next.js f
 - [Operational Scripts](#operational-scripts)
 - [Security Notes](#security-notes)
 - [Roadmap Ideas](#roadmap-ideas)
+
+## Hackathon Journey
+
+### The Genesis: Google Solution Challenge
+Stocklytics AI was originally built for the **Solution Challenge by Hack2skill and Google**. In its initial version, the platform relied heavily on cloud-based AI, specifically the **Gemini API (`gemini-2.0-flash` and `gemini-embedding-001`)** for both product vectorization and chat generation. This allowed us to build a robust proof-of-concept for intelligent retail operations.
+
+### The Evolution: Gemma for Good Hackathon
+To participate in the **Gemma for Good Hackathon**, the architecture was entirely re-engineered and optimized for Edge AI. We disconnected all external cloud AI services and pivoted the codebase to run **100% locally using Open Weights**.
+- **Before**: Cloud-dependent. Data sent to Google's Gemini API for processing and embedding.
+- **After**: Edge-optimized. The AI Assistant now runs natively on local hardware using `google/gemma-4-4b-it` (via PyTorch/Transformers) and `sentence-transformers/all-MiniLM-L6-v2` for offline embeddings.
+
+### Target Track: Digital Equity & Inclusivity
+We are submitting this project under the **Digital Equity & Inclusivity** track. Small and medium retail operators (mom-and-pop shops) often lack access to enterprise-grade AI or the technical skills to implement it. By bringing a powerful, intuitive, edge-ready AI directly to their operational dashboard, Stocklytics AI bridges the AI skills gap, democratizing advanced retail analytics without relying on expensive cloud subscriptions.
 
 ## Overview
 
@@ -115,8 +128,7 @@ Current design goals:
 
 - Answer from store data instead of generic LLM behavior
 - Use exact and semantic product retrieval for product-specific questions
-- Keep deeper reasoning on Gemini-class models to avoid slow model hops
-- Keep simple operational questions fast with `gemini-2.0-flash`
+- Run 100% locally on edge hardware using the `google/gemma-4-4b-it` model via PyTorch/Transformers
 - Return answer provenance such as intent, retrieval confidence, and grounding metadata
 - Fall back gracefully when parts of the context are unavailable
 
@@ -206,11 +218,11 @@ This project is tightly integrated with Google services.
 - Product embedding storage for vector search
 - Retrieval source for analytics and AI grounding
 
-### Gemini / Google AI
+### Gemma / Local AI Models
 
-- Query embeddings using `gemini-embedding-001`
-- Fast chat generation using Gemini Flash-class models
-- Deeper reasoning stays on configured Gemini-class models
+- Query embeddings using offline `sentence-transformers/all-MiniLM-L6-v2`
+- Fast, local chat generation using the native `google/gemma-4-4b-it` model
+- Perfect for Edge deployment and 100% compliant with the "Gemma for Good" hackathon
 - Used by the AI assistant only after context is assembled from operational data
 
 ### Cloud Run
@@ -341,12 +353,8 @@ Important backend values:
 - `FIREBASE_PROJECT_ID`
 - `FIRESTORE_PROJECT_ID`
 - `BIGQUERY_PROJECT_ID`
-- `GEMINI_API_KEY`
-- `AI_DEFAULT_MODEL_ID`
-- `AI_FAST_MODEL_ID`
-- `AI_REASONING_MODEL_ID`
-- `AI_FALLBACK_MODEL_IDS`
-- `GEMINI_EMBEDDING_MODEL`
+- `GEMMA_MODEL_ID`
+- `GEMMA_EMBEDDING_MODEL`
 
 Key frontend environment variables are defined in:
 

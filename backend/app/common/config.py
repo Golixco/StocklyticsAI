@@ -37,25 +37,9 @@ class Settings:
     bigquery_dataset_raw: str = os.getenv("BIGQUERY_DATASET_RAW", "stocklytics_raw")
     bigquery_dataset_mart: str = os.getenv("BIGQUERY_DATASET_MART", "stocklytics_mart")
 
-    # Gemini
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    ai_primary_model_id: str = os.getenv("AI_PRIMARY_MODEL_ID", os.getenv("GEMMA_MODEL_ID", "gemini-2.0-flash"))
-    ai_default_model_id: str = os.getenv("AI_DEFAULT_MODEL_ID", os.getenv("AI_PRIMARY_MODEL_ID", os.getenv("GEMMA_MODEL_ID", "gemini-2.0-flash")))
-    ai_fast_model_id: str = os.getenv("AI_FAST_MODEL_ID", "gemini-2.0-flash")
-    ai_reasoning_model_id: str = os.getenv("AI_REASONING_MODEL_ID", os.getenv("AI_FAST_MODEL_ID", "gemini-2.0-flash"))
-    ai_fallback_model_ids_raw: str = os.getenv(
-        "AI_FALLBACK_MODEL_IDS",
-        os.getenv("GEMINI_MODEL_FALLBACKS", "gemini-2.0-flash-lite-001"),
-    )
-    gemini_model_fallbacks_raw: str = os.getenv(
-        "GEMINI_MODEL_FALLBACKS",
-        "gemini-2.0-flash-lite-001",
-    )
-    gemini_model_timeout_seconds: float = float(os.getenv("GEMINI_MODEL_TIMEOUT_SECONDS", "45"))
-    gemini_generation_retries: int = int(os.getenv("GEMINI_GENERATION_RETRIES", "2"))
-
-    # RAG / Embeddings
-    gemini_embedding_model: str = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+    # Gemma AI (Local)
+    gemma_model_id: str = os.getenv("GEMMA_MODEL_ID", "google/gemma-4-4b-it")
+    gemma_embedding_model: str = os.getenv("GEMMA_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     vector_search_top_k: int = int(os.getenv("VECTOR_SEARCH_TOP_K", "5"))
     embedding_batch_size: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "50"))
     demo_auth_bypass_enabled: bool = os.getenv("DEMO_AUTH_BYPASS_ENABLED", "false").lower() == "true"
@@ -74,21 +58,7 @@ class Settings:
             if origin.strip()
         ]
 
-    @property
-    def gemini_model_fallbacks(self) -> list[str]:
-        return [
-            model.strip()
-            for model in self.gemini_model_fallbacks_raw.split(",")
-            if model.strip()
-        ]
 
-    @property
-    def ai_fallback_model_ids(self) -> list[str]:
-        return [
-            model.strip()
-            for model in self.ai_fallback_model_ids_raw.split(",")
-            if model.strip()
-        ]
 
     def validate_runtime(self) -> None:
         """Fail fast on invalid production configuration."""
@@ -100,7 +70,6 @@ class Settings:
             ("FIREBASE_PROJECT_ID", self.firebase_project_id),
             ("FIRESTORE_PROJECT_ID", self.firestore_project_id),
             ("BIGQUERY_PROJECT_ID", self.bigquery_project_id),
-            ("GEMINI_API_KEY", self.gemini_api_key),
         ]
         for name, value in required_pairs:
             if not str(value).strip():
@@ -117,11 +86,6 @@ class Settings:
                 "CORS_ALLOW_ORIGINS must be configured in production."
             )
 
-        if self.gemini_model_timeout_seconds < 5:
-            raise RuntimeError("GEMINI_MODEL_TIMEOUT_SECONDS must be at least 5 seconds.")
-
-        if self.gemini_generation_retries < 0:
-            raise RuntimeError("GEMINI_GENERATION_RETRIES cannot be negative.")
 
 
 @lru_cache(maxsize=1)

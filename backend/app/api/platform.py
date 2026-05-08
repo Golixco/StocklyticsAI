@@ -127,31 +127,16 @@ async def _probe_bigquery() -> str:
         return "error"
 
 
-async def _probe_gemini() -> str:
+async def _probe_gemma() -> str:
     """
-    Gemini connectivity check.
-
-    Local/dev behavior:
-        - if GEMINI_API_KEY is missing -> not_configured
-    Runtime behavior:
-        - lists one available model
+    Gemma local availability check.
     """
-    settings = get_settings()
-    if not settings.gemini_api_key:
-        return "not_configured" if settings.is_local else "error"
-
-    def _ping_gemini() -> str:
-        import google.generativeai as genai
-
-        genai.configure(api_key=settings.gemini_api_key)
-        # Trigger a lightweight API call.
-        next(iter(genai.list_models()), None)
-        return "ok"
-
     try:
-        return await asyncio.to_thread(_ping_gemini)
+        from app.modules.ai.service import _get_tokenizer_and_model
+        await asyncio.to_thread(_get_tokenizer_and_model)
+        return "ok"
     except Exception:  # noqa: BLE001
-        logger.exception("Gemini readiness probe failed")
+        logger.exception("Gemma readiness probe failed")
         return "error"
 
 
@@ -159,7 +144,7 @@ async def _probe_gemini() -> str:
     "/ready",
     summary="Readiness check",
     description=(
-        "Probes Firestore, BigQuery, and Gemini dependencies. "
+        "Probes Firestore, BigQuery, and Gemma dependencies. "
         "Returns 200 when all critical dependencies are reachable."
     ),
     response_description="All dependencies are ready.",
@@ -171,16 +156,16 @@ async def readiness_check():
     health dashboards can surface partial outages quickly.
     No authentication required.
     """
-    firestore_status, bigquery_status, gemini_status = await asyncio.gather(
+    firestore_status, bigquery_status, gemma_status = await asyncio.gather(
         _run_with_timeout(_probe_firestore()),
         _run_with_timeout(_probe_bigquery()),
-        _run_with_timeout(_probe_gemini()),
+        _run_with_timeout(_probe_gemma()),
     )
 
     dependencies = {
         "firestore": firestore_status,
         "bigquery": bigquery_status,
-        "gemini": gemini_status,
+        "gemma": gemma_status,
     }
     has_error = any(dep_status == "error" for dep_status in dependencies.values())
 

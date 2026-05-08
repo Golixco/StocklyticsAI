@@ -99,7 +99,7 @@ async def get_analytics_metadata(store_id: str) -> Optional[dict[str, Any]]:
 
 async def get_active_alerts_snapshot(store_id: str, limit: int = 10) -> list[dict[str, Any]]:
     """
-    Return up to `limit` ACTIVE alerts for the store to provide context to Gemini.
+    Return up to `limit` ACTIVE alerts for the store to provide context to Gemma.
     Reads directly from the alerts collection (owned by Alerts module).
     """
     db = _get_db()
