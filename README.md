@@ -469,8 +469,8 @@ Useful backend scripts in `backend/scripts/`:
 <img width="1600" height="849" alt="558d80fb-30d4-4ecb-8165-e9c24b2a7da1" src="https://github.com/user-attachments/assets/f98e613a-7eb7-4afd-9036-e8ca0fedc719" />
 <img width="1600" height="845" alt="ff02c2a1-912c-416e-a1d3-cc61081a5eb8" src="https://github.com/user-attachments/assets/7659b5e2-c911-4cf8-b1ed-19c4dd5c2922" />
 
-## Demo Video
+## Project Links
 
-[Watch the Demo Video](https://youtu.be/e9IBF1SQq4Q?si=X39mQI471dhAx7fV)
-
-**Main repo**: [https://github.com/ShreyData/Stocklytics-AI](https://github.com/ShreyData/Stocklytics-AI)
+- **YouTube**: [https://youtu.be/e9IBF1SQq4Q?si=OrUKfv7aweuc-g7J](https://youtu.be/e9IBF1SQq4Q?si=OrUKfv7aweuc-g7J)
+- **Main GitHub Repo**: [https://github.com/ShreyData/Stocklytics-AI](https://github.com/ShreyData/Stocklytics-AI)
+- **Cloud Run App**: [https://stocklytics-frontend-hpcb3ng5ra-el.a.run.app/](https://stocklytics-frontend-hpcb3ng5ra-el.a.run.app/)
