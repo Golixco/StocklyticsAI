@@ -455,12 +455,11 @@ Useful backend scripts in `backend/scripts/`:
 - Secret Manager integration for all production-sensitive settings
 
 ## ScreenShots
-
-![Screenshot 1](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/303cd486-aab1-416f-b109-ce66db5dc725.jpg)
-![Screenshot 2](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/558d80fb-30d4-4ecb-8165-e9c24b2a7da1.jpg)
-![Screenshot 3](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/a891f3e7-f78a-4c8a-bbfe-1c74be5453ab.jpg)
-![Screenshot 4](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/d3ef7fad-1313-41b9-80b8-4702bc0a6308.jpg)
-![Screenshot 5](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/ff02c2a1-912c-416e-a1d3-cc61081a5eb8.jpg)
+<img width="610" height="1132" alt="303cd486-aab1-416f-b109-ce66db5dc725" src="https://github.com/user-attachments/assets/1610b04b-5c57-4296-9df4-4abe5431d63d" />
+<img width="1600" height="845" alt="d3ef7fad-1313-41b9-80b8-4702bc0a6308" src="https://github.com/user-attachments/assets/2353032c-267e-4fee-9496-af80c2755b29" />
+<img width="1600" height="845" alt="a891f3e7-f78a-4c8a-bbfe-1c74be5453ab" src="https://github.com/user-attachments/assets/3ea869a9-cffb-441d-b5c0-e0114c03ba5a" />
+<img width="1600" height="849" alt="558d80fb-30d4-4ecb-8165-e9c24b2a7da1" src="https://github.com/user-attachments/assets/f98e613a-7eb7-4afd-9036-e8ca0fedc719" />
+<img width="1600" height="845" alt="ff02c2a1-912c-416e-a1d3-cc61081a5eb8" src="https://github.com/user-attachments/assets/7659b5e2-c911-4cf8-b1ed-19c4dd5c2922" />
 
 ## Demo Video
 
