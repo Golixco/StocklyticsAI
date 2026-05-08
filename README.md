@@ -453,3 +453,17 @@ Useful backend scripts in `backend/scripts/`:
 - Richer analytics slices and drill-downs
 - Automated CI validation for backend, frontend, and deployment health
 - Secret Manager integration for all production-sensitive settings
+
+## ScreenShots
+
+![Screenshot 1](Readmepngs/303cd486-aab1-416f-b109-ce66db5dc725.jpg)
+![Screenshot 2](Readmepngs/558d80fb-30d4-4ecb-8165-e9c24b2a7da1.jpg)
+![Screenshot 3](Readmepngs/a891f3e7-f78a-4c8a-bbfe-1c74be5453ab.jpg)
+![Screenshot 4](Readmepngs/d3ef7fad-1313-41b9-80b8-4702bc0a6308.jpg)
+![Screenshot 5](Readmepngs/ff02c2a1-912c-416e-a1d3-cc61081a5eb8.jpg)
+
+## Demo Video
+
+[Watch the Demo Video](https://youtu.be/e9IBF1SQq4Q?si=X39mQI471dhAx7fV)
+
+**Main repo**: [https://github.com/ShreyData/Stocklytics-AI](https://github.com/ShreyData/Stocklytics-AI)
