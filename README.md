@@ -456,11 +456,11 @@ Useful backend scripts in `backend/scripts/`:
 
 ## ScreenShots
 
-![Screenshot 1](Readmepngs/303cd486-aab1-416f-b109-ce66db5dc725.jpg)
-![Screenshot 2](Readmepngs/558d80fb-30d4-4ecb-8165-e9c24b2a7da1.jpg)
-![Screenshot 3](Readmepngs/a891f3e7-f78a-4c8a-bbfe-1c74be5453ab.jpg)
-![Screenshot 4](Readmepngs/d3ef7fad-1313-41b9-80b8-4702bc0a6308.jpg)
-![Screenshot 5](Readmepngs/ff02c2a1-912c-416e-a1d3-cc61081a5eb8.jpg)
+![Screenshot 1](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/303cd486-aab1-416f-b109-ce66db5dc725.jpg)
+![Screenshot 2](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/558d80fb-30d4-4ecb-8165-e9c24b2a7da1.jpg)
+![Screenshot 3](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/a891f3e7-f78a-4c8a-bbfe-1c74be5453ab.jpg)
+![Screenshot 4](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/d3ef7fad-1313-41b9-80b8-4702bc0a6308.jpg)
+![Screenshot 5](https://raw.githubusercontent.com/ShreyData/Stocklytics-AI/main/Readmepngs/ff02c2a1-912c-416e-a1d3-cc61081a5eb8.jpg)
 
 ## Demo Video
 
