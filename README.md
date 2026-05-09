@@ -4,6 +4,12 @@ Stocklytics AI is a retail operations platform for small and medium stores. It c
 
 The project is implemented as a modular monolith backend with a modern Next.js frontend, and it is designed to run well on Google Cloud using Firestore, BigQuery, Cloud Run, and local Gemma open models.
 
+## Project Links
+
+- **YouTube**: [https://youtu.be/e9IBF1SQq4Q?si=OrUKfv7aweuc-g7J](https://youtu.be/e9IBF1SQq4Q?si=OrUKfv7aweuc-g7J)
+- **Main GitHub Repo**: [https://github.com/ShreyData/Stocklytics-AI](https://github.com/ShreyData/Stocklytics-AI)
+- **Cloud Run App**: [https://stocklytics-frontend-hpcb3ng5ra-el.a.run.app/](https://stocklytics-frontend-hpcb3ng5ra-el.a.run.app/)
+
 ## Table of Contents
 
 - [Overview](#overview)
